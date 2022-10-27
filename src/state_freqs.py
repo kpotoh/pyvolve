@@ -52,7 +52,7 @@ class StateFrequencies(object):
         # Frequency vectors "initialized". It is possible that not all of these will be used, but we set them up in case. 
         self.nucleotide_freqs    = np.zeros(4)     
         self.amino_acid_freqs  = np.zeros(20)
-        self.codon_freqs  = np.zeros(61)
+        self.codon_freqs  = np.zeros(len(MOLECULES.codons))
         
         # Input parameters and general setup. 
         self._by = by.lower()
@@ -153,7 +153,7 @@ class StateFrequencies(object):
             Calculate nucleotide frequencies from codon frequencies (by = 'codon', type = 'nucleotide').
         '''        
         
-        for i in range(61):
+        for i in range(len(MOLECULES.codons)):
             codon_freq = self.codon_freqs[i]
             codon = MOLECULES.codons[i]
             for n in range(4):

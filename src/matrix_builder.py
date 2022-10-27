@@ -277,7 +277,7 @@ class MechCodon_Matrix(MatrixBuilder):
 
     def __init__(self, *args):
         super(MechCodon_Matrix, self).__init__(*args)
-        self._size = 61
+        self._size = len(MOLECULES.codons)
         self._code = MOLECULES.codons
         if "neutral_scaling" not in self.params:
             self.params["neutral_scaling"] = False    
@@ -369,7 +369,7 @@ class MutSel_Matrix(MatrixBuilder):
         self.scale_matrix = "neutral"
         if self._size == 4:
             self._code = MOLECULES.nucleotides
-        elif self._size == 61:
+        elif self._size == len(MOLECULES.codons):
             self._code = MOLECULES.codons
         else:
             raise ValueError("\n\nMutSel model matrices must be of dimensions 4x4 or 61x61.")
@@ -478,8 +478,8 @@ class ECM_Matrix(MatrixBuilder):
         else:
             raise ValueError("\n\nECM model must be specified as REST or UNREST, for restricted or unrestricted, respectively.")
 
-        self._size = 61
         self._code = MOLECULES.codons
+        self._size = len(self._code)
         self.scale_matrix = "persite" # It's completely unclear how these models should work, so stick with this.
         self._init_empirical_matrix(self.model_type)
         

@@ -141,7 +141,7 @@ class Model():
                 self.code = MOLECULES.nucleotides
             elif dim == 20:
                 self.code = MOLECULES.amino_acids
-            elif dim == 61:
+            elif dim == len(MOLECULES.codons):
                 self.code = MOLECULES.codons
             else:
                 raise ValueError("\n\nUnknown code to evolve.")
@@ -252,7 +252,7 @@ class Model():
              
              
         elif self.model_type == 'gy' or self.model_type == 'mg':
-            self.params = MechCodon_Sanity(self.model_type, self.params, size = 61, hetcodon_model = self.hetcodon_model )()
+            self.params = MechCodon_Sanity(self.model_type, self.params, size = len(MOLECULES.codons), hetcodon_model = self.hetcodon_model )()
             self.params["neutral_scaling"] = self.neutral_scaling
             if self.hetcodon_model:
                 self._assign_hetcodon_model_matrices()
@@ -261,7 +261,7 @@ class Model():
         
         
         elif 'ecm' in self.model_type:
-            self.params = ECM_Sanity(self.model_type, self.params, size = 61)()
+            self.params = ECM_Sanity(self.model_type, self.params, size = len(MOLECULES.codons))()
             self.matrix = ECM_Matrix(self.model_type, self.params)()
  
  
@@ -362,7 +362,7 @@ class Model():
             dim = len(self.params["code"])
             assert( custom_matrix.shape == (dim, dim) ), "\n[ERROR] The dimensions for your custom matrix must be the same as your custom code!" 
         else:
-            assert( custom_matrix.shape == (4,4) or custom_matrix.shape == (20,20) or custom_matrix.shape == (61,61) ), "\n Custom transition matrix must be symmetric with dimensions 4x4 (nucleotides), 20x20 (amino-acids), or codons (61x61). If you wish to use a custom code which does not have these states, then specify this code with the argument custom_code."
+            assert( custom_matrix.shape == (4,4) or custom_matrix.shape == (20,20) or custom_matrix.shape == (len(MOLECULES.codons),len(MOLECULES.codons)) ), "\n Custom transition matrix must be symmetric with dimensions 4x4 (nucleotides), 20x20 (amino-acids), or codons (61x61). If you wish to use a custom code which does not have these states, then specify this code with the argument custom_code."
             dim = custom_matrix.shape[0]
             
         # Check that sums to zero with a relatively permissive tolerance
