@@ -19,7 +19,7 @@ from .parameters_sanity import *
 from scipy.stats import gamma
 from scipy.special import gammainc
 ZERO      = 1e-8
-MOLECULES = Genetics()
+# MOLECULES = Genetics()
 
 class Model():
     ''' 
@@ -29,7 +29,7 @@ class Model():
         Alternatively, rate heterogeneity in dN/dS models is implemented using a set of matrices with distinct dN/dS values, and each matrix has an associated probability. 
     '''
     
-    def __init__(self, model_type, parameters = None, **kwargs):
+    def __init__(self, model_type, parameters = None, gencode=1, **kwargs):
         '''
             The Model class will construct an evolutionary model object which will be used to evolve sequence data.            
             Instantiation requires a single positional argument (but a second one is recommended, read on!):
@@ -102,7 +102,10 @@ class Model():
                 8. **neutral_scaling**, for specifying that **codon models** (GY, MG) be scaled such that the mean rate of neutral substitution per unit time is 1. By default, codon models are scaled according to set the mean substitution rate to be 1. Setting this parameter to True will scale codon models neutrally. Note that this argument is only relevant for codon models and is ignored in other cases. Default: False.
        '''
     
-        
+
+        # Custom genetic code entities
+        self.gencode = gencode
+        self.MOLECULES = Genetics(gencode)
         
         self.model_type   = model_type.lower()            
         if parameters is None:
@@ -126,9 +129,6 @@ class Model():
         self._check_hetcodon_model()
         self._construct_model()    
 
-        
-        
- 
     def _assign_code(self):
         ''' 
             Assign genetic code or custom code provided specifically for a custom matrix.
@@ -138,11 +138,11 @@ class Model():
         else:
             dim = len(self.params['state_freqs']) 
             if dim == 4:
-                self.code = MOLECULES.nucleotides
+                self.code = self.MOLECULES.nucleotides
             elif dim == 20:
-                self.code = MOLECULES.amino_acids
-            elif dim == len(MOLECULES.codons):
-                self.code = MOLECULES.codons
+                self.code = self.MOLECULES.amino_acids
+            elif dim == len(self.MOLECULES.codons):
+                self.code = self.MOLECULES.codons
             else:
                 raise ValueError("\n\nUnknown code to evolve.")
 
@@ -235,8 +235,8 @@ class Model():
         '''
         
         if self.model_type == 'nucleotide':
-            self.params = Nucleotide_Sanity(self.model_type, self.params, size = 4)()
-            self.matrix = Nucleotide_Matrix(self.model_type, self.params)()
+            self.params = Nucleotide_Sanity(self.model_type, self.params, size = 4, gencode=self.gencode)()
+            self.matrix = Nucleotide_Matrix(self.model_type, self.params, gencode=self.gencode)()
                 
                     
         elif self.model_type in self.aa_models or self.model_type == "paml":
@@ -247,27 +247,27 @@ class Model():
                 if not 'state_freqs' in self.params:
                     self.params['state_freqs'] = paml_parameters[0]
                     
-            self.params = AminoAcid_Sanity(self.model_type, self.params, size = 20)()
-            self.matrix = AminoAcid_Matrix(self.model_type, self.params)()
+            self.params = AminoAcid_Sanity(self.model_type, self.params, size = 20, gencode=self.gencode)()
+            self.matrix = AminoAcid_Matrix(self.model_type, self.params, gencode=self.gencode)()
              
              
         elif self.model_type == 'gy' or self.model_type == 'mg':
-            self.params = MechCodon_Sanity(self.model_type, self.params, size = len(MOLECULES.codons), hetcodon_model = self.hetcodon_model )()
+            self.params = MechCodon_Sanity(self.model_type, self.params, size = len(self.MOLECULES.codons), hetcodon_model = self.hetcodon_model, gencode=self.gencode)()
             self.params["neutral_scaling"] = self.neutral_scaling
             if self.hetcodon_model:
                 self._assign_hetcodon_model_matrices()
             else:
-                self.matrix = MechCodon_Matrix(self.model_type, self.params )()
+                self.matrix = MechCodon_Matrix(self.model_type, self.params, gencode=self.gencode)()
         
         
         elif 'ecm' in self.model_type:
-            self.params = ECM_Sanity(self.model_type, self.params, size = len(MOLECULES.codons))()
-            self.matrix = ECM_Matrix(self.model_type, self.params)()
+            self.params = ECM_Sanity(self.model_type, self.params, size = len(self.MOLECULES.codons), gencode=self.gencode)()
+            self.matrix = ECM_Matrix(self.model_type, self.params, gencode=self.gencode)()
  
  
         elif self.model_type == 'mutsel':
-            self.params = MutSel_Sanity(self.model_type, self.params)()
-            self.matrix = MutSel_Matrix(self.model_type, self.params)()
+            self.params = MutSel_Sanity(self.model_type, self.params, gencode=self.gencode)()
+            self.matrix = MutSel_Matrix(self.model_type, self.params, gencode=self.gencode)()
             
             # Need to construct and add frequencies to the model dictionary if the matrix was built with fitness values
             if not self.params["calc_by_freqs"]:
@@ -297,8 +297,8 @@ class Model():
         # Array of frequencies, which needs to be renormalized to pyvolve's more stringent tolerance
         fraw = paml_lines[-1].strip().strip(";").split(" ")
         freq = []
-        for AA in MOLECULES.amino_acids:
-            freq.append( float( fraw [ MOLECULES.paml_amino_acids.index(AA) ] ) )
+        for AA in self.MOLECULES.amino_acids:
+            freq.append( float( fraw [ self.MOLECULES.paml_amino_acids.index(AA) ] ) )
         if ( abs(1. - np.sum(freq)) > ZERO ):
             freq = np.array(freq)
             freq /= np.sum(freq) 
@@ -311,12 +311,12 @@ class Model():
         for row in matrixraw:
             row_list = row.strip().split(" ")
             assert(len(row_list) == x+1), "\n\nERROR: Malformed PAML model file."
-            source = MOLECULES.paml_amino_acids[x+1]
+            source = self.MOLECULES.paml_amino_acids[x+1]
             for i in range(len(row_list)):
-                target = MOLECULES.paml_amino_acids[i]
+                target = self.MOLECULES.paml_amino_acids[i]
                 
-                i_index = MOLECULES.amino_acids.index(source)
-                j_index = MOLECULES.amino_acids.index(target)
+                i_index = self.MOLECULES.amino_acids.index(source)
+                j_index = self.MOLECULES.amino_acids.index(target)
                 
                 rate = float(row_list[i].strip())
                 rates[i_index][j_index] = rate
@@ -362,7 +362,7 @@ class Model():
             dim = len(self.params["code"])
             assert( custom_matrix.shape == (dim, dim) ), "\n[ERROR] The dimensions for your custom matrix must be the same as your custom code!" 
         else:
-            assert( custom_matrix.shape == (4,4) or custom_matrix.shape == (20,20) or custom_matrix.shape == (len(MOLECULES.codons),len(MOLECULES.codons)) ), "\n Custom transition matrix must be symmetric with dimensions 4x4 (nucleotides), 20x20 (amino-acids), or codons (61x61). If you wish to use a custom code which does not have these states, then specify this code with the argument custom_code."
+            assert( custom_matrix.shape == (4,4) or custom_matrix.shape == (20,20) or custom_matrix.shape == (len(self.MOLECULES.codons),len(self.MOLECULES.codons)) ), "\n Custom transition matrix must be symmetric with dimensions 4x4 (nucleotides), 20x20 (amino-acids), or codons (61x61). If you wish to use a custom code which does not have these states, then specify this code with the argument custom_code."
             dim = custom_matrix.shape[0]
             
         # Check that sums to zero with a relatively permissive tolerance
@@ -402,7 +402,7 @@ class Model():
             temp_params = deepcopy(self.params)
             temp_params['beta'] = self.params['beta'][i]
             temp_params['alpha'] = self.params['alpha'][i]
-            mb = MechCodon_Matrix(self.model_type, temp_params)
+            mb = MechCodon_Matrix(self.model_type, temp_params, gencode=self.gencode)
             self.matrix.append( mb() )
         assert(len(self.matrix) > 0), "Matrices for a heterogeneous codon model were improperly constructed."
 

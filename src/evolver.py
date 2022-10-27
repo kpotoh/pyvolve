@@ -19,7 +19,7 @@ from .newick import *
 from .genetics import *
 from .partition import *
 ZERO      = 1e-8
-MOLECULES = Genetics()
+# MOLECULES = Genetics()
         
         
 class Site():
@@ -46,12 +46,16 @@ class Evolver(object):
           Note that file creation may be suppressed or files may be renamed using optional arguments given below.
     
     '''    
-    def __init__(self, **kwargs):
+    def __init__(self, gencode=1, **kwargs):
         '''             
             Required keyword arguments include,
                 1. **tree** is the phylogeny (parsed with the ``newick.read_tree`` function) along which sequences are evolved
                 2. **partitions** (or **partition**) is a list of Partition instances to evolve.
         '''
+
+        # Custom genetic code entities
+        self.gencode = gencode
+        self.MOLECULES = Genetics(gencode)
                 
         self.partitions = kwargs.get('partitions', None)
         if self.partitions is None:
@@ -78,11 +82,11 @@ class Evolver(object):
 
     def _setup_subcounts(self):
         
-        if self._code == MOLECULES.nucleotides:
+        if self._code == self.MOLECULES.nucleotides:
             self.branch_substitution_counts["nucleotide"] = {}
-        elif self._code == MOLECULES.amino_acids:
+        elif self._code == self.MOLECULES.amino_acids:
             self.branch_substitution_counts["amino_acid"] = {}
-        elif self._code == MOLECULES.codons:
+        elif self._code == self.MOLECULES.codons:
             self.branch_substitution_counts["nucleotide"] = {} 
             self.branch_substitution_counts["amino_acid"] = {} ## aka also covers nonsynonymous
             self.branch_substitution_counts["synonymous"] = {} 
@@ -407,8 +411,8 @@ class Evolver(object):
             for i in range(0, len(parent_seq), 3):
                 parent_codon = parent_seq[i:i+3]
                 child_codon  = child_seq[i:i+3]
-                parent_aa    = MOLECULES.codon_dict[parent_codon] #MOLECULES.amino_acids.index( MOLECULES.codon_dict[parent_codon] )
-                child_aa     = MOLECULES.codon_dict[child_codon] # MOLECULES.amino_acids.index( MOLECULES.codon_dict[child_codon] )                
+                parent_aa    = self.MOLECULES.codon_dict[parent_codon] #MOLECULES.amino_acids.index( MOLECULES.codon_dict[parent_codon] )
+                child_aa     = self.MOLECULES.codon_dict[child_codon] # MOLECULES.amino_acids.index( MOLECULES.codon_dict[child_codon] )                
                 nuc_diff = sum([1 for x in range(3) if parent_codon[x] != child_codon[x]])
 
                 code_changes["nucleotide"] += nuc_diff

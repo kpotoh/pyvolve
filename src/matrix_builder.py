@@ -21,7 +21,7 @@ from copy import deepcopy
 from .genetics import *
 from .state_freqs import *
 ZERO      = 1e-8
-MOLECULES = Genetics()
+# MOLECULES = Genetics()
 
 
 class MatrixBuilder(object):
@@ -42,7 +42,7 @@ class MatrixBuilder(object):
         
     '''
     
-    def __init__(self, model_type, parameters):
+    def __init__(self, model_type, parameters, gencode=1):
         '''
             Requires two positional argument:
                 1. **model_type**, the type of model which will be built
@@ -50,7 +50,10 @@ class MatrixBuilder(object):
         '''
         self.model_type = model_type.lower()
         self.params = parameters  
-         
+
+        # Custom genetic code entities
+        self.gencode = gencode
+        self.MOLECULES = Genetics(gencode)
 
     def _build_matrix( self, parameters = None):
         ''' 
@@ -151,8 +154,8 @@ class MatrixBuilder(object):
             Arguments "source" and "target" are the actual nucleotides (not indices).
         '''
         
-        ti_pyrim = source in MOLECULES.pyrims and target in MOLECULES.pyrims
-        ti_purine = source in MOLECULES.purines and target in MOLECULES.purines    
+        ti_pyrim = source in self.MOLECULES.pyrims and target in self.MOLECULES.pyrims
+        ti_purine = source in self.MOLECULES.purines and target in self.MOLECULES.purines    
         if ti_pyrim or ti_purine:
             return True
         else:
@@ -168,9 +171,9 @@ class MatrixBuilder(object):
             Arguments arguments "source" and "target" are codon indices (0-60, alphabetical).
         '''
         
-        source_codon = MOLECULES.codons[source]
-        target_codon = MOLECULES.codons[target]
-        if ( MOLECULES.codon_dict[source_codon] == MOLECULES.codon_dict[target_codon] ):
+        source_codon = self.MOLECULES.codons[source]
+        target_codon = self.MOLECULES.codons[target]
+        if ( self.MOLECULES.codon_dict[source_codon] == self.MOLECULES.codon_dict[target_codon] ):
             return True
         else:
             return False           
@@ -186,8 +189,8 @@ class MatrixBuilder(object):
             Input arguments source and target are codon indices (0-60, alphabetical).
         '''        
         
-        source_codon = MOLECULES.codons[source]
-        target_codon = MOLECULES.codons[target]
+        source_codon = self.MOLECULES.codons[source]
+        target_codon = self.MOLECULES.codons[target]
         return "".join( [source_codon[i]+target_codon[i] for i in range(len(source_codon)) if source_codon[i] != target_codon[i]] )
         
         
@@ -208,10 +211,10 @@ class AminoAcid_Matrix(MatrixBuilder):
         Note that all empirical amino acid replacement matrices are in the file empirical_matrices.py.
     '''        
     
-    def __init__(self, *args):
-        super(AminoAcid_Matrix, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(AminoAcid_Matrix, self).__init__(*args, **kwargs)
         self._size = 20
-        self.code = MOLECULES.amino_acids
+        self.code = self.MOLECULES.amino_acids
         self.scale_matrix = "persite"
         self._init_empirical_matrix(self.model_type) # name argument in _init_empirical_matrix()
    
@@ -238,10 +241,10 @@ class Nucleotide_Matrix(MatrixBuilder):
         All models computed here are essentially nested versions of GTR.
     '''        
     
-    def __init__(self, *args):
-        super(Nucleotide_Matrix, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(Nucleotide_Matrix, self).__init__(*args, **kwargs)
         self._size = 4
-        self._code = MOLECULES.nucleotides
+        self._code = self.MOLECULES.nucleotides
         self.scale_matrix = "persite"
 
 
@@ -275,10 +278,10 @@ class MechCodon_Matrix(MatrixBuilder):
     
     '''        
 
-    def __init__(self, *args):
-        super(MechCodon_Matrix, self).__init__(*args)
-        self._size = len(MOLECULES.codons)
-        self._code = MOLECULES.codons
+    def __init__(self, *args, **kwargs):
+        super(MechCodon_Matrix, self).__init__(*args, **kwargs)
+        self._size = len(self.MOLECULES.codons)
+        self._code = self.MOLECULES.codons
         if "neutral_scaling" not in self.params:
             self.params["neutral_scaling"] = False    
        
@@ -303,7 +306,7 @@ class MechCodon_Matrix(MatrixBuilder):
         if self.model_type == 'gy':
             prob *= self.params['state_freqs'][target_codon]
         else:
-            prob *= self.params["nuc_freqs"][ MOLECULES.nucleotides.index(target_nuc) ]        
+            prob *= self.params["nuc_freqs"][ self.MOLECULES.nucleotides.index(target_nuc) ]        
         return prob
     
 
@@ -360,17 +363,17 @@ class MutSel_Matrix(MatrixBuilder):
 
     '''
 
-    def __init__(self, *args):
-        super(MutSel_Matrix, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(MutSel_Matrix, self).__init__(*args, **kwargs)
         try:
             self._size = len(self.params["state_freqs"])
         except:
             self._size = len(self.params["fitness"])
         self.scale_matrix = "neutral"
         if self._size == 4:
-            self._code = MOLECULES.nucleotides
-        elif self._size == len(MOLECULES.codons):
-            self._code = MOLECULES.codons
+            self._code = self.MOLECULES.nucleotides
+        elif self._size == len(self.MOLECULES.codons):
+            self._code = self.MOLECULES.codons
         else:
             raise ValueError("\n\nMutSel model matrices must be of dimensions 4x4 or 61x61.")
 
@@ -468,8 +471,8 @@ class ECM_Matrix(MatrixBuilder):
     
     ''' 
     
-    def __init__(self, *args):      
-        super(ECM_Matrix, self).__init__(*args)
+    def __init__(self, *args, **kwargs):      
+        super(ECM_Matrix, self).__init__(*args, **kwargs)
         if self.model_type == 'ecmrest':
             self.restricted = True
         elif self.model_type == 'ecmunrest':
@@ -478,7 +481,7 @@ class ECM_Matrix(MatrixBuilder):
         else:
             raise ValueError("\n\nECM model must be specified as REST or UNREST, for restricted or unrestricted, respectively.")
 
-        self._code = MOLECULES.codons
+        self._code = self.MOLECULES.codons
         self._size = len(self._code)
         self.scale_matrix = "persite" # It's completely unclear how these models should work, so stick with this.
         self._init_empirical_matrix(self.model_type)

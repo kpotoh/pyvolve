@@ -22,7 +22,7 @@ from .genetics import *
 from .state_freqs import *
 import warnings
 ZERO      = 1e-8
-MOLECULES = Genetics()
+# MOLECULES = Genetics()
 
 
 class ParametersSanity(object):
@@ -45,7 +45,7 @@ class ParametersSanity(object):
 
     '''
 
-    def __init__(self, model_type, parameters, **kwargs):
+    def __init__(self, model_type, parameters, gencode=1, **kwargs):
         '''
             Requires two positional argument:
                 1. **model_type**, the type of model which will be built
@@ -58,8 +58,10 @@ class ParametersSanity(object):
         self.model_type = model_type
         self.params     = parameters
         self.size       = kwargs.get("size", None)
-
-
+    
+        # Custom genetic code entities
+        self.gencode = gencode
+        self.MOLECULES = Genetics(gencode)
 
     def __call__(self):
         '''
@@ -89,7 +91,7 @@ class ParametersSanity(object):
             if not empirical:
                 self.params['state_freqs'] = np.repeat(1./self.size, self.size)
             else:
-                f = EmpiricalModelFrequencies(self.model_type)
+                f = EmpiricalModelFrequencies(self.model_type, gencode=self.gencode)
                 self.params['state_freqs'] = f.compute_frequencies()
 
         # If present, check the size and the sum
@@ -257,7 +259,7 @@ class MechCodon_Sanity(ParametersSanity):
 
         else:
             self._sanity_state_freqs() # basic checks, and below extract the nucleotide frequencies from it
-            f = CustomFrequencies(by = 'codon', freq_dict = dict(list(zip(MOLECULES.codons, self.params['state_freqs']))))
+            f = CustomFrequencies(by = 'codon', freq_dict = dict(list(zip(self.MOLECULES.codons, self.params['state_freqs']))), gencode=self.gencode)
             self.params["nuc_freqs"] = f.compute_frequencies(type = 'nucleotide')
 
 
@@ -271,9 +273,9 @@ class MechCodon_Sanity(ParametersSanity):
         assert( abs(np.sum(nf) - 1.) <= ZERO), "\n\nProvided nucleotide frequencies for an MG-style model do not sum to 1."
         pi_stop = (nf[3]*nf[0]*nf[2]) + (nf[3]*nf[2]*nf[0]) + (nf[3]*nf[0]*nf[0])
         for i in range(61):
-            codon = MOLECULES.codons[i]
+            codon = self.MOLECULES.codons[i]
             for j in range(3):
-                f1x4[i] *= nf[ MOLECULES.nucleotides.index(codon[j]) ]
+                f1x4[i] *= nf[ self.MOLECULES.nucleotides.index(codon[j]) ]
         f1x4 /= (1. - pi_stop)
         assert( abs(np.sum(f1x4) - 1.) <= ZERO ), "\n\nCould not properly calculate F1x4 frequencies for an MG-style model."
         return f1x4
@@ -367,12 +369,12 @@ class MutSel_Sanity(ParametersSanity):
         if 'state_freqs' in self.params:
             self.params["calc_by_freqs"] = True
 
-            if len(self.params['state_freqs']) == len(MOLECULES.codons):
-                self.size = len(MOLECULES.codons)
+            if len(self.params['state_freqs']) == len(self.MOLECULES.codons):
+                self.size = len(self.MOLECULES.codons)
                 self.params["codon_model"] = True
 
-            elif len(self.params['state_freqs']) == len(MOLECULES.nucleotides):
-                self.size = len(MOLECULES.nucleotides)
+            elif len(self.params['state_freqs']) == len(self.MOLECULES.nucleotides):
+                self.size = len(self.MOLECULES.nucleotides)
                 self.params["codon_model"] = False
 
             else:
@@ -382,14 +384,14 @@ class MutSel_Sanity(ParametersSanity):
         elif 'fitness' in self.params:
             self.params["calc_by_freqs"] = False
 
-            if len(self.params['fitness']) == len(MOLECULES.codons) or len(self.params['fitness']) == len(MOLECULES.amino_acids):
+            if len(self.params['fitness']) == len(self.MOLECULES.codons) or len(self.params['fitness']) == len(self.MOLECULES.amino_acids):
                 self.params["codon_model"] = True
 
                 # Replace length-20 fitness with length-61 fitness, assuming equal fitness for synonymous codons.
-                if len(self.params['fitness']) == len(MOLECULES.amino_acids):
+                if len(self.params['fitness']) == len(self.MOLECULES.amino_acids):
                     self._amino_to_codon_fitness()
 
-            elif len(self.params['fitness']) == len(MOLECULES.nucleotides):
+            elif len(self.params['fitness']) == len(self.MOLECULES.nucleotides):
                 self.params["codon_model"] = False
 
             else:
@@ -421,13 +423,13 @@ class MutSel_Sanity(ParametersSanity):
         '''
         d = {}
         for i in range(20):
-            syn_codons = MOLECULES.genetic_code[i]
+            syn_codons = self.MOLECULES.genetic_code[i]
             for syn in syn_codons:
                 d[ syn ] = self.params['fitness'][i]
 
         codon_fitness = np.zeros(61)
         count = 0
         for i in range(61):
-            codon_fitness[i] = d[MOLECULES.codons[i]]
+            codon_fitness[i] = d[self.MOLECULES.codons[i]]
 
         self.params['fitness'] = codon_fitness

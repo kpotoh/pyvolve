@@ -20,7 +20,7 @@ import random as rn
 from Bio import SeqIO, AlignIO
 from .genetics import *
 ZERO      = 1e-8
-MOLECULES = Genetics()
+# MOLECULES = Genetics()
 
 
 
@@ -41,7 +41,7 @@ class StateFrequencies(object):
       '''
     
     
-    def __init__(self, by, **kwargs):
+    def __init__(self, by, gencode=1, **kwargs):
         '''
             
             A single positional argument is required for all child classes.
@@ -49,10 +49,14 @@ class StateFrequencies(object):
                  
         '''
         
+        # Custom genetic code entities
+        self.gencode = gencode
+        self.MOLECULES = Genetics(gencode)
+
         # Frequency vectors "initialized". It is possible that not all of these will be used, but we set them up in case. 
         self.nucleotide_freqs    = np.zeros(4)     
         self.amino_acid_freqs  = np.zeros(20)
-        self.codon_freqs  = np.zeros(len(MOLECULES.codons))
+        self.codon_freqs  = np.zeros(len(self.MOLECULES.codons))
         
         # Input parameters and general setup. 
         self._by = by.lower()
@@ -106,11 +110,11 @@ class StateFrequencies(object):
     def _set_code_size(self):
         ''' Set up the code (alphabet) and dimensionality for computing self._byFreqs '''
         if self._by == 'amino_acid':
-            self._code = MOLECULES.amino_acids
+            self._code = self.MOLECULES.amino_acids
         elif self._by == 'codon':
-            self._code = MOLECULES.codons
+            self._code = self.MOLECULES.codons
         elif self._by == 'nucleotide':
-            self._code = MOLECULES.nucleotides
+            self._code = self.MOLECULES.nucleotides
         self._size = len(self._code)
  
  
@@ -126,9 +130,9 @@ class StateFrequencies(object):
         '''
         
         for aa_count in range(20):
-            syn = MOLECULES.genetic_code[aa_count]
+            syn = self.MOLECULES.genetic_code[aa_count]
             for synCodon in syn:
-                cind = MOLECULES.codons.index(synCodon)
+                cind = self.MOLECULES.codons.index(synCodon)
                 self.codon_freqs[cind] = self.amino_acid_freqs[aa_count]/float(len(syn))
         assert( abs(np.sum(self.codon_freqs) - 1.) <= ZERO), "Codon state frequencies improperly calculated from amino acid frequencies. Do not sum to 1."                 
       
@@ -140,10 +144,10 @@ class StateFrequencies(object):
             Calculate amino acid frequencies from codon frequencies (by = 'codon', type = 'amino_acid').
         '''
         
-        for a in range(len(MOLECULES.amino_acids)):
-            codons1 = MOLECULES.genetic_code[a]
+        for a in range(len(self.MOLECULES.amino_acids)):
+            codons1 = self.MOLECULES.genetic_code[a]
             for c in codons1:
-                ind = MOLECULES.codons.index(c)
+                ind = self.MOLECULES.codons.index(c)
                 self.amino_acid_freqs[a] += self.codon_freqs[ind]
         assert( abs(np.sum(self.amino_acid_freqs) - 1.) <= ZERO), "Amino acid state frequencies improperly generate_byFreqsd from codon frequencies. Do not sum to 1." 
 
@@ -153,11 +157,11 @@ class StateFrequencies(object):
             Calculate nucleotide frequencies from codon frequencies (by = 'codon', type = 'nucleotide').
         '''        
         
-        for i in range(len(MOLECULES.codons)):
+        for i in range(len(self.MOLECULES.codons)):
             codon_freq = self.codon_freqs[i]
-            codon = MOLECULES.codons[i]
+            codon = self.MOLECULES.codons[i]
             for n in range(4):
-                nuc =  MOLECULES.nucleotides[n]
+                nuc =  self.MOLECULES.nucleotides[n]
                 nuc_freq = float(codon.count(nuc))/3. # number of that nucleotide in the codon
                 self.nucleotide_freqs[n] += codon_freq * nuc_freq
         assert( abs(np.sum(self.nucleotide_freqs) - 1.) <= ZERO), "Nucleotide state frequencies improperly generate_byFreqsd. Do not sum to 1." 
